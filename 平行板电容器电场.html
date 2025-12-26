@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>平行板电容器3D物理模型</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        .header {
+            padding: 20px;
+            background-color: #fff;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 10;
+        }
+        
+        h1 {
+            font-size: 1.8rem;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+        
+        .description {
+            color: #7f8c8d;
+            font-size: 1rem;
+            max-width: 800px;
+        }
+        
+        .container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+        
+        .controls {
+            width: 300px;
+            background-color: #fff;
+            padding: 20px;
+            border-right: 1px solid #e0e0e0;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+        
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .control-title {
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 1.1rem;
+        }
+        
+        .control-description {
+            color: #7f8c8d;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+        
+        .slider-container {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .slider-value {
+            font-weight: 600;
+            color: #3498db;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            height: 8px;
+            -webkit-appearance: none;
+            background: #e0e0e0;
+            border-radius: 4px;
+            outline: none;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #3498db;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        
+        .view-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .button {
+            padding: 10px 15px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background-color 0.2s;
+        }
+        
+        .button:hover {
+            background-color: #2980b9;
+        }
+        
+        .viewer {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        #canvas-container {
+            width: 100%;
+            height: 100%;
+            cursor: grab;
+        }
+        
+        #canvas-container:active {
+            cursor: grabbing;
+        }
+        
+        .instructions {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 12px 15px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            color: #2c3e50;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+            max-width: 300px;
+        }
+        
+        .instructions h3 {
+            margin-bottom: 8px;
+            font-size: 1rem;
+        }
+        
+        .instructions ul {
+            padding-left: 20px;
+        }
+        
+        .instructions li {
+            margin-bottom: 5px;
+        }
+        
+        .legend {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 15px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            color: #2c3e50;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            margin-right: 10px;
+            border-radius: 2px;
+        }
+        
+        .footer {
+            padding: 10px 20px;
+            background-color: #fff;
+            border-top: 1px solid #e0e0e0;
+            font-size: 0.85rem;
+            color: #7f8c8d;
+            text-align: center;
+        }
+        
+        .status {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            z-index: 1000;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+            
+            .controls {
+                width: 100%;
+                height: auto;
+                max-height: 40vh;
+                border-right: none;
+                border-bottom: 1px solid #e0e0e0;
+            }
+            
+            .instructions, .legend {
+                position: relative;
+                top: auto;
+                right: auto;
+                bottom: auto;
+                left: auto;
+                margin: 10px;
+                max-width: none;
+            }
+        }
+    </style>
+    <!-- 使用更稳定的Three.js版本 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+    <div class="header">
+        <h1>平行板电容器3D物理模型</h1>
+        <p class="description">交互式3D模型展示平行板电容器的结构、电场线和等势面分布。通过滑块调节极板间距，观察电场线密度的变化。</p>
+    </div>
+    
+    <div class="container">
+        <div class="controls">
+            <div class="control-group">
+                <div class="control-title">极板间距控制</div>
+                <p class="control-description">调节滑块可以改变电容器两极板之间的距离。根据电容器原理，电场强度与极板间距成反比，因此电场线密度会随之变化。</p>
+                <div class="slider-container">
+                    <div class="slider-value">间距: <span id="spacing-value">0.5</span> 单位</div>
+                    <input type="range" id="spacing-slider" min="0.2" max="1.0" step="0.01" value="0.5">
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <div class="control-title">鼠标控制</div>
+                <p class="control-description">
+                    • 左键拖拽：旋转视角<br>
+                    • 滚轮滚动：缩放视图<br>
+                    • 右键拖拽：平移视图<br>
+                    • 双击左键：重置视角
+                </p>
+                <div class="view-controls">
+                    <button class="button" id="reset-view">重置视图</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="viewer">
+            <div id="canvas-container"></div>
+            
+            <div class="status" id="status">
+                状态: 正在初始化...
+            </div>
+            
+            <div class="instructions">
+                <h3>交互控制说明</h3>
+                <ul>
+                    <li><strong>鼠标左键拖拽</strong>：旋转3D视图</li>
+                    <li><strong>鼠标滚轮</strong>：缩放视图</li>
+                    <li><strong>鼠标右键拖拽</strong>：平移视图</li>
+                    <li><strong>上方滑块</strong>：调节极板间距</li>
+                </ul>
+            </div>
+            
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #4d7cff;"></div>
+                    <div>电容器极板 (金属质感)</div>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #ff3333;"></div>
+                    <div>电场线 (亮红色)</div>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: rgba(51, 204, 255, 0.2);"></div>
+                    <div>等势面 (浅蓝色，透明度0.2)</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="footer">
+        平行板电容器3D物理模型 | 基于Three.js构建 | 电场线密度与极板间距成反比
+    </div>
+
+    <script>
+        // 简化的OrbitControls实现
+        class SimpleOrbitControls {
+            constructor(camera, domElement) {
+                this.camera = camera;
+                this.domElement = domElement;
+                this.enabled = true;
+                this.target = new THREE.Vector3(0, 0, 0);
+                
+                // 控制参数
+                this.rotateSpeed = 1.0;
+                this.zoomSpeed = 1.2;
+                this.panSpeed = 0.3;
+                
+                // 状态变量
+                this.state = 'NONE';
+                this.rotateStart = new THREE.Vector2();
+                this.rotateEnd = new THREE.Vector2();
+                this.rotateDelta = new THREE.Vector2();
+                this.panStart = new THREE.Vector2();
+                this.panEnd = new THREE.Vector2();
+                this.panDelta = new THREE.Vector2();
+                this.zoomScale = 1;
+                
+                // 事件监听
+                this.domElement.addEventListener('contextmenu', this.onContextMenu.bind(this), false);
+                this.domElement.addEventListener('mousedown', this.onMouseDown.bind(this), false);
+                this.domElement.addEventListener('wheel', this.onMouseWheel.bind(this), false);
+                this.domElement.addEventListener('touchstart', this.onTouchStart.bind(this), false);
+                this.domElement.addEventListener('touchmove', this.onTouchMove.bind(this), false);
+                
+                // 鼠标移动和抬起
+                document.addEventListener('mousemove', this.onMouseMove.bind(this), false);
+                document.addEventListener('mouseup', this.onMouseUp.bind(this), false);
+                
+                // 双击重置
+                this.domElement.addEventListener('dblclick', this.onDoubleClick.bind(this), false);
+            }
+            
+            onContextMenu(event) {
+                event.preventDefault();
+            }
+            
+            onMouseDown(event) {
+                if (!this.enabled) return;
+                
+                event.preventDefault();
+                
+                if (event.button === 0) {
+                    this.state = 'ROTATE';
+                    this.rotateStart.set(event.clientX, event.clientY);
+                } else if (event.button === 2) {
+                    this.state = 'PAN';
+                    this.panStart.set(event.clientX, event.clientY);
+                }
+                
+                this.domElement.style.cursor = 'grabbing';
+            }
+            
+            onMouseMove(event) {
+                if (!this.enabled) return;
+                
+                if (this.state === 'ROTATE') {
+                    this.rotateEnd.set(event.clientX, event.clientY);
+                    this.rotateDelta.subVectors(this.rotateEnd, this.rotateStart);
+                    
+                    const element = this.domElement;
+                    this.rotateLeft(2 * Math.PI * this.rotateDelta.x / element.clientHeight * this.rotateSpeed);
+                    this.rotateUp(2 * Math.PI * this.rotateDelta.y / element.clientHeight * this.rotateSpeed);
+                    
+                    this.rotateStart.copy(this.rotateEnd);
+                } else if (this.state === 'PAN') {
+                    this.panEnd.set(event.clientX, event.clientY);
+                    this.panDelta.subVectors(this.panEnd, this.panStart);
+                    
+                    this.pan(this.panDelta.x, this.panDelta.y);
+                    
+                    this.panStart.copy(this.panEnd);
+                }
+            }
+            
+            onMouseUp() {
+                if (!this.enabled) return;
+                
+                this.state = 'NONE';
+                this.domElement.style.cursor = 'grab';
+            }
+            
+            onMouseWheel(event) {
+                if (!this.enabled) return;
+                
+                event.preventDefault();
+                
+                if (event.deltaY < 0) {
+                    this.zoomScale = 1 / this.zoomSpeed;
+                } else {
+                    this.zoomScale = this.zoomSpeed;
+                }
+                
+                this.zoom(this.zoomScale);
+            }
+            
+            onTouchStart(event) {
+                if (!this.enabled) return;
+                
+                if (event.touches.length === 1) {
+                    this.state = 'ROTATE';
+                    this.rotateStart.set(event.touches[0].pageX, event.touches[0].pageY);
+                } else if (event.touches.length === 2) {
+                    this.state = 'ZOOM';
+                    const dx = event.touches[0].pageX - event.touches[1].pageX;
+                    const dy = event.touches[0].pageY - event.touches[1].pageY;
+                    this.zoomStart = Math.sqrt(dx * dx + dy * dy);
+                }
+            }
+            
+            onTouchMove(event) {
+                if (!this.enabled) return;
+                
+                event.preventDefault();
+                
+                if (this.state === 'ROTATE' && event.touches.length === 1) {
+                    this.rotateEnd.set(event.touches[0].pageX, event.touches[0].pageY);
+                    this.rotateDelta.subVectors(this.rotateEnd, this.rotateStart);
+                    
+                    const element = this.domElement;
+                    this.rotateLeft(2 * Math.PI * this.rotateDelta.x / element.clientHeight * this.rotateSpeed);
+                    this.rotateUp(2 * Math.PI * this.rotateDelta.y / element.clientHeight * this.rotateSpeed);
+                    
+                    this.rotateStart.copy(this.rotateEnd);
+                } else if (this.state === 'ZOOM' && event.touches.length === 2) {
+                    const dx = event.touches[0].pageX - event.touches[1].pageX;
+                    const dy = event.touches[0].pageY - event.touches[1].pageY;
+                    const zoomEnd = Math.sqrt(dx * dx + dy * dy);
+                    
+                    this.zoomScale = this.zoomStart / zoomEnd;
+                    this.zoom(this.zoomScale);
+                    
+                    this.zoomStart = zoomEnd;
+                }
+            }
+            
+            onDoubleClick() {
+                this.reset();
+            }
+            
+            rotateLeft(angle) {
+                const axis = new THREE.Vector3(0, 1, 0);
+                const quaternion = new THREE.Quaternion();
+                quaternion.setFromAxisAngle(axis, angle);
+                this.camera.position.applyQuaternion(quaternion);
+                this.camera.up.applyQuaternion(quaternion);
+                this.camera.lookAt(this.target);
+            }
+            
+            rotateUp(angle) {
+                const axis = new THREE.Vector3(1, 0, 0);
+                const quaternion = new THREE.Quaternion();
+                quaternion.setFromAxisAngle(axis, angle);
+                this.camera.position.applyQuaternion(quaternion);
+                this.camera.up.applyQuaternion(quaternion);
+                this.camera.lookAt(this.target);
+            }
+            
+            pan(deltaX, deltaY) {
+                const element = this.domElement;
+                const offset = new THREE.Vector3();
+                offset.copy(this.camera.position).sub(this.target);
+                
+                let targetDistance = offset.length();
+                targetDistance *= Math.tan((this.camera.fov / 2) * Math.PI / 180.0);
+                
+                const panX = 2 * deltaX * targetDistance / element.clientHeight;
+                const panY = 2 * deltaY * targetDistance / element.clientHeight;
+                
+                panX *= this.panSpeed;
+                panY *= this.panSpeed;
+                
+                const up = new THREE.Vector3(0, 1, 0);
+                const panOffset = new THREE.Vector3();
+                panOffset.crossVectors(this.camera.up, offset).normalize();
+                panOffset.multiplyScalar(panX);
+                panOffset.addScaledVector(up, panY);
+                
+                this.camera.position.add(panOffset);
+                this.target.add(panOffset);
+                this.camera.lookAt(this.target);
+            }
+            
+            zoom(scale) {
+                const offset = new THREE.Vector3();
+                offset.copy(this.camera.position).sub(this.target);
+                offset.multiplyScalar(scale);
+                this.camera.position.copy(this.target).add(offset);
+                this.camera.lookAt(this.target);
+            }
+            
+            reset() {
+                this.camera.position.set(3, 2, 3);
+                this.camera.lookAt(this.target);
+                this.target.set(0, 0, 0);
+            }
+            
+            update() {
+                // 简单控制不需要每帧更新
+            }
+        }
+        
+        // 主应用程序
+        class CapacitorApp {
+            constructor() {
+                this.scene = null;
+                this.camera = null;
+                this.renderer = null;
+                this.controls = null;
+                this.plateTop = null;
+                this.plateBottom = null;
+                this.fieldLines = [];
+                this.equipotentialSurfaces = [];
+                this.plateSpacing = 0.5;
+                
+                this.init();
+            }
+            
+            init() {
+                try {
+                    document.getElementById('status').textContent = '状态: 正在初始化Three.js...';
+                    
+                    // 创建场景
+                    this.scene = new THREE.Scene();
+                    this.scene.background = new THREE.Color(0xf0f0f0);
+                    
+                    // 创建相机
+                    const container = document.getElementById('canvas-container');
+                    this.camera = new THREE.PerspectiveCamera(
+                        45, 
+                        container.clientWidth / container.clientHeight, 
+                        0.1, 
+                        1000
+                    );
+                    this.camera.position.set(3, 2, 3);
+                    
+                    // 创建渲染器
+                    this.renderer = new THREE.WebGLRenderer({ 
+                        antialias: true,
+                        alpha: true
+                    });
+                    this.renderer.setSize(container.clientWidth, container.clientHeight);
+                    this.renderer.setPixelRatio(window.devicePixelRatio);
+                    this.renderer.shadowMap.enabled = true;
+                    container.appendChild(this.renderer.domElement);
+                    
+                    document.getElementById('status').textContent = '状态: 正在初始化控制器...';
+                    
+                    // 使用自定义的简单控制器
+                    this.controls = new SimpleOrbitControls(this.camera, this.renderer.domElement);
+                    this.controls.target.set(0, 0, 0);
+                    this.camera.lookAt(this.controls.target);
+                    
+                    // 添加灯光
+                    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+                    this.scene.add(ambientLight);
+                    
+                    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+                    directionalLight.position.set(5, 10, 7);
+                    directionalLight.castShadow = true;
+                    this.scene.add(directionalLight);
+                    
+                    // 添加辅助网格
+                    const gridHelper = new THREE.GridHelper(10, 10);
+                    gridHelper.position.y = -1;
+                    this.scene.add(gridHelper);
+                    
+                    document.getElementById('status').textContent = '状态: 正在创建电容器...';
+                    
+                    // 创建电容器模型
+                    this.createCapacitor();
+                    this.createFieldLines();
+                    this.createEquipotentialSurfaces();
+                    
+                    // 设置事件监听
+                    this.setupEventListeners();
+                    
+                    // 开始动画循环
+                    this.animate();
+                    
+                    document.getElementById('status').textContent = '状态: 就绪 - 使用鼠标控制视图';
+                    
+                    // 3秒后隐藏状态信息
+                    setTimeout(() => {
+                        document.getElementById('status').style.opacity = '0.5';
+                    }, 3000);
+                    
+                } catch (error) {
+                    console.error('初始化错误:', error);
+                    document.getElementById('status').textContent = '状态: 初始化失败 - ' + error.message;
+                    document.getElementById('status').style.color = 'red';
+                }
+            }
+            
+            createCapacitor() {
+                const plateWidth = 1.0;
+                const plateHeight = 0.8;
+                const plateThickness = 0.1;
+                
+                // 蓝色金属材质
+                const plateMaterial = new THREE.MeshPhongMaterial({ 
+                    color: 0x4d7cff,
+                    shininess: 100,
+                    specular: 0x444444
+                });
+                
+                // 上极板
+                const plateGeometry = new THREE.BoxGeometry(plateWidth, plateThickness, plateHeight);
+                this.plateTop = new THREE.Mesh(plateGeometry, plateMaterial);
+                this.plateTop.position.y = this.plateSpacing / 2;
+                this.plateTop.castShadow = true;
+                this.plateTop.receiveShadow = true;
+                this.scene.add(this.plateTop);
+                
+                // 下极板
+                this.plateBottom = new THREE.Mesh(plateGeometry.clone(), plateMaterial);
+                this.plateBottom.position.y = -this.plateSpacing / 2;
+                this.plateBottom.castShadow = true;
+                this.plateBottom.receiveShadow = true;
+                this.scene.add(this.plateBottom);
+            }
+            
+            createFieldLines() {
+                // 清除旧的电场线
+                this.fieldLines.forEach(line => this.scene.remove(line));
+                this.fieldLines = [];
+                
+                const lineCount = Math.max(5, Math.floor(10 / this.plateSpacing));
+                const plateWidth = 1.0;
+                const plateHeight = 0.8;
+                
+                // 红色电场线材质
+                const lineMaterial = new THREE.LineBasicMaterial({ 
+                    color: 0xff3333,
+                    linewidth: 2
+                });
+                
+                // 创建电场线
+                for (let i = 0; i < lineCount; i++) {
+                    const x = (Math.random() - 0.5) * plateWidth * 0.8;
+                    const z = (Math.random() - 0.5) * plateHeight * 0.8;
+                    
+                    const points = [];
+                    const yStart = -this.plateSpacing / 2 + 0.05;
+                    const yEnd = this.plateSpacing / 2 - 0.05;
+                    
+                    // 创建平滑的曲线
+                    for (let j = 0; j <= 20; j++) {
+                        const t = j / 20;
+                        const y = yStart + (yEnd - yStart) * t;
+                        
+                        // 添加轻微弯曲效果
+                        const curveAmount = 0.02;
+                        const curveX = x + Math.sin(t * Math.PI) * curveAmount * (Math.random() - 0.5);
+                        const curveZ = z + Math.cos(t * Math.PI) * curveAmount * (Math.random() - 0.5);
+                        
+                        points.push(new THREE.Vector3(curveX, y, curveZ));
+                    }
+                    
+                    const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
+                    const line = new THREE.Line(lineGeometry, lineMaterial);
+                    this.scene.add(line);
+                    this.fieldLines.push(line);
+                }
+            }
+            
+            createEquipotentialSurfaces() {
+                // 清除旧的等势面
+                this.equipotentialSurfaces.forEach(surface => this.scene.remove(surface));
+                this.equipotentialSurfaces = [];
+                
+                const surfaceCount = 5;
+                const plateWidth = 1.0;
+                const plateHeight = 0.8;
+                
+                // 浅蓝色透明材质
+                const surfaceMaterial = new THREE.MeshPhongMaterial({ 
+                    color: 0x33ccff,
+                    transparent: true,
+                    opacity: 0.2,
+                    side: THREE.DoubleSide
+                });
+                
+                // 创建等势面
+                for (let i = 1; i <= surfaceCount; i++) {
+                    const yPosition = -this.plateSpacing/2 + (i * this.plateSpacing / (surfaceCount + 1));
+                    
+                    const surfaceGeometry = new THREE.PlaneGeometry(plateWidth * 0.9, plateHeight * 0.9);
+                    const surface = new THREE.Mesh(surfaceGeometry, surfaceMaterial);
+                    surface.position.y = yPosition;
+                    surface.rotation.x = Math.PI / 2;
+                    this.scene.add(surface);
+                    this.equipotentialSurfaces.push(surface);
+                }
+            }
+            
+            updateCapacitor() {
+                // 更新极板位置
+                this.plateTop.position.y = this.plateSpacing / 2;
+                this.plateBottom.position.y = -this.plateSpacing / 2;
+                
+                // 重新创建电场线和等势面
+                this.createFieldLines();
+                this.createEquipotentialSurfaces();
+            }
+            
+            setupEventListeners() {
+                const container = document.getElementById('canvas-container');
+                
+                // 窗口大小变化
+                window.addEventListener('resize', () => {
+                    this.camera.aspect = container.clientWidth / container.clientHeight;
+                    this.camera.updateProjectionMatrix();
+                    this.renderer.setSize(container.clientWidth, container.clientHeight);
+                });
+                
+                // 间距滑块
+                const spacingSlider = document.getElementById('spacing-slider');
+                const spacingValue = document.getElementById('spacing-value');
+                
+                spacingSlider.addEventListener('input', (e) => {
+                    this.plateSpacing = parseFloat(e.target.value);
+                    spacingValue.textContent = this.plateSpacing.toFixed(2);
+                    this.updateCapacitor();
+                });
+                
+                // 重置视图按钮
+                document.getElementById('reset-view').addEventListener('click', () => {
+                    this.controls.reset();
+                });
+                
+                // 键盘快捷键
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'r' || e.key === 'R') {
+                        this.controls.reset();
+                    }
+                });
+            }
+            
+            animate() {
+                requestAnimationFrame(() => this.animate());
+                
+                // 更新控制器
+                this.controls.update();
+                
+                // 等势面脉动效果
+                this.equipotentialSurfaces.forEach((surface, index) => {
+                    if (surface && surface.material) {
+                        surface.material.opacity = 0.2 + 0.05 * Math.sin(Date.now() * 0.001 + index);
+                    }
+                });
+                
+                // 渲染场景
+                this.renderer.render(this.scene, this.camera);
+            }
+        }
+        
+        // 页面加载完成后启动应用
+        window.addEventListener('load', () => {
+            const app = new CapacitorApp();
+        });
+    </script>
+</body>
+</html>
